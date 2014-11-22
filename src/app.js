@@ -507,58 +507,63 @@ var NMBS = {
   }
 };
 
-var station = DeLijn.getStation(300812);
-var arrivals = DeLijn.getArrivals(station,10);
-arrivals.forEach(function(arrival) {
-    console.log(arrival.getBus().getNumber() + " [" + arrival.getBus().getName() + "]   @ "  + arrival.getTime().toLocaleTimeString());  
+var options = [];
+var initialized = false;
+
+/**
+ * On Pebble Initialized Event
+ */
+Pebble.addEventListener("ready", function() {
+    initialized = true;
 });
 
-var main = new UI.Card({
-  title: 'BETransport',
-  icon: 'images/menu_icon.png',
-  subtitle: 'Hello World!',
-  body: 'Test'
+Pebble.addEventListener("showConfiguration", function() {
+    Pebble.openURL('http://runelaenen.be/api/MijnLijnPebbleConfig.php?'+encodeURIComponent(JSON.stringify(options)));
 });
 
-main.show();
+Pebble.addEventListener("webviewclosed", function(e) {
+    if (e.response != 'undefined' && e.response !== "") {
+        localStorage.setItem("options", e.response);
+    }
+});
 
-main.on('click', 'up', function(e) {
-  var menu = new UI.Menu({
+var screen_menu = null;
+var screen_delijn = null;
+
+function load_menu(){
+
+  screen_menu = new UI.Menu({
     sections: [{
+      title: 'BETransport',
       items: [{
-        title: 'Pebble.js',
-        icon: 'images/menu_icon.png',
-        subtitle: 'Can do Menus'
-      }, {
-        title: 'Second Item',
-        subtitle: ''
+        title: 'DeLijn',
+        icon: 'images/DeLijn_PEBBLE.png'
+      },{
+        title: 'MIVB / STIB'
+      },{
+        title: 'NMBS'
       }]
     }]
   });
-  menu.on('select', function(e) {
-    console.log('Selected item #' + e.itemIndex + ' of section #' + e.sectionIndex);
-    console.log('The item is titled "' + e.item.title + '"');
-  });
-  menu.show();
-});
+  
+  screen_menu.show(); 
+}
+load_menu();
 
-main.on('click', 'select', function(e) {
-  var wind = new UI.Window();
-  var textfield = new UI.Text({
-    position: new Vector2(0, 50),
-    size: new Vector2(144, 30),
-    font: 'gothic-24-bold',
-    text: 'Test',
-    textAlign: 'center'
+function load_delijn(){
+  var menuItems = [];
+  var station = DeLijn.getStation(300812);
+  var arrivals = DeLijn.getArrivals(station,1);
+  menuItems.push({
+    title: station.getName(),
+    subtitle: arrivals[0].getBus().getNumber() + " " + arrivals[0].getBus().getName()
   });
-  wind.add(textfield);
-  wind.show();
-});
-
-main.on('click', 'down', function(e) {
-  var card = new UI.Card();
-  card.title('A Card');
-  card.subtitle('Is a Window');
-  card.body('The simplest window type in Pebble.js.');
-  card.show();
-});
+  screen_delijn = new UI.Menu({
+    sections: [{
+      title: 'DeLijn - Uw haltes',
+      items: menuItems
+    }]
+  });
+  
+  screen_delijn.show(); 
+}

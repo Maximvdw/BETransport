@@ -28,6 +28,21 @@
                 "file": "fonts/UbuntuMono-Regular.ttf",
                 "name": "MONO_FONT_14",
                 "type": "font"
+            },
+            {
+                "file": "images/NMBS_PEBBLE.png",
+                "name": "IMAGES_NMBS_PEBBLE_PNG",
+                "type": "png"
+            },
+            {
+                "file": "images/MIVB_PEBBLE.png",
+                "name": "IMAGES_MIVB_PEBBLE_PNG",
+                "type": "png"
+            },
+            {
+                "file": "images/DeLijn_PEBBLE.png",
+                "name": "IMAGES_DELIJN_PEBBLE_PNG",
+                "type": "png"
             }
         ]
     },
