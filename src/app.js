@@ -15,16 +15,183 @@
 // Pebble Imports
 var UI = require('ui');
 var Vector2 = require('vector2');
-// API Imports
-var DeLijnAPI = require('DeLijnAPI');
+var ajax = require('ajax');
+  
 
+/**
+ * DeLijnAPI
+ *
+ * @version 1.0
+ * @author Maxim Van de Wynckel
+ */
+var DeLijn = {  
+  /**
+   * Get station info
+   *
+   * @param code Station code
+   * @return Parsed JSON array
+   */
+  getStation: function(code){
+    var url = "http://data.irail.be/DeLijn/Stations.json?code=" + code;
+    
+    var output = null;
+    // Get the stations from the URL
+    ajax({
+      url: url,
+      type: 'json',
+      async: false
+      },
+      function(data) {
+        // Parse JSON data
+        console.log("Station fetched from url '" + url + "'");
+        
+        var stations = data.Stations;
+        
+        var station = new DeLijn.Station();
+        station.setId(stations[0].id);
+        station.setCode(stations[0].code);
+        station.setName(stations[0].name);
+        console.log("Station: " + station.getName() + " [" + station.getId() + "]");
+        
+        output = station;
+      },
+      function(error) {
+        // Error while contacting irail
+        console.log("Unable to get station from url '" + url + "' !");
+        
+        output = null;
+      }
+    );
+    return output;
+  },
+  
+  /**
+   * Get arrivals in station
+   *
+   * @param station Station
+   * @return Array with Arrivals
+   */
+  getArrivals: function(station){
+    var url = "https://data.irail.be/DeLijn/Arrivals/" + station.getId() + "/2014/11/22/15/50.json";
+    var output = null;
+    // Get the arrivals from the URL
+    ajax({
+      url: url,
+      type: 'json',
+      async: false
+      },
+      function(data) {
+        // Parse JSON data
+        console.log("Arrivals fetched from url '" + url + "'");
+        
+        var arrivals = [];
+        for (var arrivalData in data.Arrivals){
+          var arrival = new DeLijn.Arrival();
+          var bus = new DeLijn.Bus();
+    
+          bus.setNumber(arrivalData.short_name);
+          console.log(bus.getNumber());
+          arrival.setBus(bus);
+          arrivals.push(arrival); 
+        }
+        
+        output = arrivals;
+      },
+      function(error) {
+        // Error while contacting irail
+        console.log("Unable to get arrivals from url '" + url + "' !");
+        
+        output = null;
+      }
+    );
+    return output;
+  },
+  
+  
+  /**
+   * Station class
+   */
+  Station: function(){
+    this.id = 0;
+    this.code = 0;
+    this.name = "";
+    
+    this.getId = function(){
+      return this.id;
+    };
+    this.setId = function(id){
+      this.id = id;
+    };
+    this.getCode = function(){
+      return this.code;
+    };
+    this.setCode = function(code){
+      this.code = code;
+    };
+    this.getName = function() {
+          return this.name;
+    };
+    this.setName = function(name){
+      this.name = name;
+    };
+    
+  },
+  
+  
+  /**
+   * Bus arrival at a station
+   */
+  Arrival: function(){
+    this.bus = DeLijn.Bus();
+    this.time = Date();
+    
+    this.getBus = function(){
+      return this.bus;
+    };
+    this.setBus = function(bus){
+      this.bus = bus;
+    };
+    this.getTime = function(){
+      return this.time;
+    };
+    this.setTime = function(time){
+      this.time = time;
+    };
+  },
+  
+  /**
+   * Bus
+   */
+  Bus: function(){
+    this.number = 0;
+    this.name = "";
+    
+    this.getName = function() {
+          return this.name;
+    };
+    this.setName = function(name){
+      this.name = name;
+    };
+    this.getNumber = function(){
+      return this.number;
+    };
+    this.setNumber = function(number){
+      this.number = number;
+    };
+  }
+};
 
+var station = DeLijn.getStation(300812);
+var arrivals = DeLijn.getArrivals(station);
+for (var arrival in arrivals){
+  console.log(arrival.getBus().getNumber());  
+}
 
 var main = new UI.Card({
-  title: 'Pebble.js',
+  title: 'BETransport',
   icon: 'images/menu_icon.png',
   subtitle: 'Hello World!',
-  body: 'Press any button.'
+  body: 'Test'
 });
 
 main.show();
@@ -38,7 +205,7 @@ main.on('click', 'up', function(e) {
         subtitle: 'Can do Menus'
       }, {
         title: 'Second Item',
-        subtitle: DeLijnAPI.getStation(300812).getName()
+        subtitle: ''
       }]
     }]
   });
@@ -55,7 +222,7 @@ main.on('click', 'select', function(e) {
     position: new Vector2(0, 50),
     size: new Vector2(144, 30),
     font: 'gothic-24-bold',
-    text: 'Text Anywhere!',
+    text: 'Test',
     textAlign: 'center'
   });
   wind.add(textfield);
