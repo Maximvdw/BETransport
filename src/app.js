@@ -69,10 +69,12 @@ var DeLijn = {
    * Get arrivals in station
    *
    * @param station Station
+   * @param count Max count
    * @return Array with Arrivals
    */
-  getArrivals: function(station){
-    var url = "https://data.irail.be/DeLijn/Arrivals/" + station.getId() + "/2014/11/22/15/50.json";
+  getArrivals: function(station,count){
+    var d = new Date();
+    var url = "https://data.irail.be/DeLijn/Arrivals/" + station.getId() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
     var output = null;
     // Get the arrivals from the URL
     ajax({
@@ -85,13 +87,14 @@ var DeLijn = {
         console.log("Arrivals fetched from url '" + url + "'");
         
         var arrivals = [];
-        for (var arrivalData in data.Arrivals){
+        console.log("Found '" + data.Arrivals.length + "' arrivals!");
+        for (var i in data.Arrivals){
           var arrival = new DeLijn.Arrival();
           var bus = new DeLijn.Bus();
-    
-          bus.setNumber(arrivalData.short_name);
-          console.log(bus.getNumber());
+          bus.setNumber(data.Arrivals[i].short_name);
+          bus.setName(data.Arrivals[i].long_name);
           arrival.setBus(bus);
+          arrival.setTime(new Date(data.Arrivals[i].time * 1000));
           arrivals.push(arrival); 
         }
         
@@ -182,10 +185,10 @@ var DeLijn = {
 };
 
 var station = DeLijn.getStation(300812);
-var arrivals = DeLijn.getArrivals(station);
-for (var arrival in arrivals){
-  console.log(arrival.getBus().getNumber());  
-}
+var arrivals = DeLijn.getArrivals(station,10);
+arrivals.forEach(function(arrival) {
+    console.log(arrival.getBus().getNumber() + " [" + arrival.getBus().getName() + "]   @ "  + arrival.getTime().toLocaleTimeString());  
+});
 
 var main = new UI.Card({
   title: 'BETransport',
