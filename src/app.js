@@ -3,7 +3,7 @@
  *
  * This Pebble application made to stay up to date
  * with the Belgian public transport supports
- * DeLijn, MIVB/STIB, NMBS and TEC
+ * DeLijn, MIVB/STIB and NMBS
  *
  * The application uses public data fetched from the irail.be
  * site.
@@ -180,6 +180,329 @@ var DeLijn = {
     };
     this.setNumber = function(number){
       this.number = number;
+    };
+  }
+};
+
+/**
+ * MIVBAPI
+ *
+ * @version 1.0
+ * @author Maxim Van de Wynckel
+ */
+var MIVB = {  
+  /**
+   * Get station info
+   *
+   * @param id Station identifier
+   * @return Parsed JSON array
+   */
+  getStation: function(id){
+    var url = "http://data.irail.be/MIVBSTIB/Stations.json?id=" + id;
+    
+    var output = null;
+    // Get the stations from the URL
+    ajax({
+      url: url,
+      type: 'json',
+      async: false
+      },
+      function(data) {
+        // Parse JSON data
+        console.log("Station fetched from url '" + url + "'");
+        
+        var stations = data.Stations;
+        
+        var station = new MIVB.Station();
+        station.setId(stations[0].id);
+        station.setName(stations[0].name);
+        console.log("Station: " + station.getName() + " [" + station.getId() + "]");
+        
+        output = station;
+      },
+      function(error) {
+        // Error while contacting irail
+        console.log("Unable to get station from url '" + url + "' !");
+        
+        output = null;
+      }
+    );
+    return output;
+  },
+  
+  /**
+   * Get arrivals in station
+   *
+   * @param station Station
+   * @param count Max count
+   * @return Array with Arrivals
+   */
+  getArrivals: function(station,count){
+    var d = new Date();
+    var url = "https://data.irail.be/DeLijn/Arrivals/" + station.getId() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
+    var output = null;
+    // Get the arrivals from the URL
+    ajax({
+      url: url,
+      type: 'json',
+      async: false
+      },
+      function(data) {
+        // Parse JSON data
+        console.log("Arrivals fetched from url '" + url + "'");
+        
+        var arrivals = [];
+        console.log("Found '" + data.Arrivals.length + "' arrivals!");
+        for (var i in data.Arrivals){
+          var arrival = new DeLijn.Arrival();
+          var bus = new DeLijn.Bus();
+          bus.setNumber(data.Arrivals[i].short_name);
+          bus.setName(data.Arrivals[i].long_name);
+          arrival.setBus(bus);
+          arrival.setTime(new Date(data.Arrivals[i].time * 1000));
+          arrivals.push(arrival); 
+        }
+        
+        output = arrivals;
+      },
+      function(error) {
+        // Error while contacting irail
+        console.log("Unable to get arrivals from url '" + url + "' !");
+        
+        output = null;
+      }
+    );
+    return output;
+  },
+  
+  
+  /**
+   * Station class
+   */
+  Station: function(){
+    this.id = 0;
+    this.name = "";
+    
+    this.getId = function(){
+      return this.id;
+    };
+    this.setId = function(id){
+      this.id = id;
+    };
+    this.getName = function() {
+          return this.name;
+    };
+    this.setName = function(name){
+      this.name = name;
+    };
+    
+  },
+  
+  
+  /**
+   * Bus arrival at a station
+   */
+  Arrival: function(){
+    this.bus = DeLijn.Bus();
+    this.time = Date();
+    
+    this.getBus = function(){
+      return this.bus;
+    };
+    this.setBus = function(bus){
+      this.bus = bus;
+    };
+    this.getTime = function(){
+      return this.time;
+    };
+    this.setTime = function(time){
+      this.time = time;
+    };
+  },
+  
+  /**
+   * Bus
+   */
+  Bus: function(){
+    this.number = 0;
+    this.name = "";
+    
+    this.getName = function() {
+          return this.name;
+    };
+    this.setName = function(name){
+      this.name = name;
+    };
+    this.getNumber = function(){
+      return this.number;
+    };
+    this.setNumber = function(number){
+      this.number = number;
+    };
+  }
+};
+
+/**
+ * NMBSAPI
+ *
+ * @version 1.0
+ * @author Maxim Van de Wynckel
+ */
+var NMBS = {  
+  /**
+   * Get station info
+   *
+   * @param id Station identifier
+   * @return Parsed JSON array
+   */
+  getStation: function(id){
+    var url = "http://data.irail.be/NMBS/Stations.json?id=" + id;
+    
+    var output = null;
+    // Get the stations from the URL
+    ajax({
+      url: url,
+      type: 'json',
+      async: false
+      },
+      function(data) {
+        // Parse JSON data
+        console.log("Station fetched from url '" + url + "'");
+        
+        var stations = data.Stations;
+        
+        var station = new MIVB.Station();
+        station.setId(stations[0].id);
+        station.setName(stations[0].name);
+        console.log("Station: " + station.getName() + " [" + station.getId() + "]");
+        
+        output = station;
+      },
+      function(error) {
+        // Error while contacting irail
+        console.log("Unable to get station from url '" + url + "' !");
+        
+        output = null;
+      }
+    );
+    return output;
+  },
+  
+  /**
+   * Get arrivals in station
+   *
+   * @param station Station
+   * @param count Max count
+   * @return Array with Arrivals
+   */
+  getArrivals: function(station,count){
+    var d = new Date();
+    var url = "https://data.irail.be/NMBS/Liveboard/" + station.getId() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
+    var output = null;
+    // Get the arrivals from the URL
+    ajax({
+      url: url,
+      type: 'json',
+      async: false
+      },
+      function(data) {
+        // Parse JSON data
+        console.log("Arrivals fetched from url '" + url + "'");
+        
+        var arrivals = [];
+        console.log("Found '" + data.Arrivals.length + "' arrivals!");
+        for (var i in data.Arrivals){
+          var arrival = new DeLijn.Arrival();
+          var bus = new DeLijn.Bus();
+          bus.setNumber(data.Arrivals[i].short_name);
+          bus.setName(data.Arrivals[i].long_name);
+          arrival.setBus(bus);
+          arrival.setTime(new Date(data.Arrivals[i].time * 1000));
+          arrivals.push(arrival); 
+        }
+        
+        output = arrivals;
+      },
+      function(error) {
+        // Error while contacting irail
+        console.log("Unable to get arrivals from url '" + url + "' !");
+        
+        output = null;
+      }
+    );
+    return output;
+  },
+  
+  
+  /**
+   * Station class
+   */
+  Station: function(){
+    this.id = 0;
+    this.name = "";
+    
+    this.getId = function(){
+      return this.id;
+    };
+    this.setId = function(id){
+      this.id = id;
+    };
+    this.getName = function() {
+          return this.name;
+    };
+    this.setName = function(name){
+      this.name = name;
+    };
+    
+  },
+  
+  
+  /**
+   * Train arrival at a station
+   */
+  Arrival: function(){
+    this.train = NMBS.Train();
+    this.time = Date();
+    this.platform = 0;
+    
+    this.getTrain = function(){
+      return this.train;
+    };
+    this.setTrain = function(train){
+      this.train = train;
+    };
+    this.getTime = function(){
+      return this.time;
+    };
+    this.setTime = function(time){
+      this.time = time;
+    };
+    this.getPlatform = function(){
+      return this.platform;
+    };
+    this.setPlatform = function(platform){
+      this.platform = platform;
+    };
+  },
+  
+  /**
+   * Train
+   */
+  Train: function(){
+    this.vehicle = 0;
+    this.name = "";
+    
+    this.getName = function() {
+          return this.name;
+    };
+    this.setName = function(name){
+      this.name = name;
+    };
+    this.getVehicle = function(){
+      return this.vehicle;
+    };
+    this.setVehicle = function(vehicle){
+      this.vehicle = vehicle;
     };
   }
 };
