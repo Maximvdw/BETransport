@@ -562,17 +562,13 @@ var NMBS = {
 // OPTIONS
 var options = {
   delijnHaltes: [
-    300812,
-    301748,
-    301766
+
   ],
   mivbHaltes: [
     
   ],
   nmbsHaltes: [
-    'Vilvoorde',
-    'Antwerpen Centraal',
-    'Brussel Zuid'
+
   ],
   language: 'nl'
 };
@@ -654,7 +650,7 @@ function nmbs_onArrivalsLoaded(station,arrivals){
   if (nmbs_haltes.length == options.nmbsHaltes.length){
     var nmbs_menu = [];
     for (var i in nmbs_haltes){
-      nmbs_menu.unshift({
+      nmbs_menu.push({
         title: nmbs_haltes[i].getName(),
         subtitle: nmbs_arrivals[i][0].getTrain().getId() + " " + nmbs_arrivals[i][0].getDirection()
       });
@@ -779,17 +775,53 @@ Pebble.addEventListener("ready", function() {
 });
 
 Pebble.addEventListener("showConfiguration", function() {
-    Pebble.openURL('http://runelaenen.be/api/MijnLijnPebbleConfig.php?'+encodeURIComponent(JSON.stringify(options)));
+    Pebble.openURL('http://pebble.mvdw-software.be/BETransport/settings_1.html?'+encodeURIComponent(JSON.stringify(options)));
 });
 
 Pebble.addEventListener("webviewclosed", function(e) {
     if (e.response != 'undefined' && e.response !== "") {
         localStorage.setItem("options", e.response);
+        Vibe.vibrate('short');
+        load_app();
     }
 });
 
-function load_menu(){
+function resetConfig(){
+  options = [];
+  options.delijnHaltes = [];
+  options.mivbHaltes = [];
+  options.nmbsHaltes = [];
+  options.language = 'en';
+}
 
+function load_app(){
+  if (localStorage.getItem("options") === null) {
+    console.log("No options in Localstorage");
+    resetConfig();
+  } else {
+    try {
+      console.log("Get options from Localstorage");
+      console.log(localStorage.getItem("options"));
+      options = JSON.parse(decodeURIComponent(localStorage.getItem("options")));
+      options.delijnHaltes = options.delijnHaltes.split("\n");
+      options.mivbHaltes = options.mivbHaltes.split("\n");
+      options.nmbsHaltes = options.nmbsHaltes.split("\n");
+      console.log("Options = " + JSON.stringify(options));
+    } catch (err){
+      resetConfig();
+    }
+  }
+  
+  try{ hideError(); }catch (err){}
+  try{ hideLoading(); }catch (err){}
+  try{ screen_menu.hide(); }catch (err){}
+  try{ screen_delijn.hide(); }catch (err){}
+  try{ screen_delijn_arrivals.hide(); }catch (err){}
+  try{ screen_mivb.hide(); }catch (err){}
+  try{ screen_mivb_arrivals.hide(); }catch (err){}
+  try{ screen_nmbs.hide(); }catch (err){}
+  try{ screen_nmbs_arrivals.hide(); }catch (err){}
+  
   screen_menu = new UI.Menu({
     sections: [{
       title: 'BETransport',
@@ -818,7 +850,7 @@ function load_menu(){
   });
   screen_menu.show(); 
 }
-load_menu();
+load_app();
 
 function load_delijn(){
   showLoading();
