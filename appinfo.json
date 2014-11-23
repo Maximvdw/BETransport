@@ -30,18 +30,18 @@
                 "type": "font"
             },
             {
-                "file": "images/NMBS_PEBBLE.png",
-                "name": "IMAGES_NMBS_PEBBLE_PNG",
+                "file": "images/icon_nmbs.png",
+                "name": "IMAGES_ICON_NMBS_PNG",
                 "type": "png"
             },
             {
-                "file": "images/MIVB_PEBBLE.png",
-                "name": "IMAGES_MIVB_PEBBLE_PNG",
+                "file": "images/icon_mivbstib.png",
+                "name": "IMAGES_ICON_MIVBSTIB_PNG",
                 "type": "png"
             },
             {
-                "file": "images/DeLijn_PEBBLE.png",
-                "name": "IMAGES_DELIJN_PEBBLE_PNG",
+                "file": "images/icon_delijn.png",
+                "name": "IMAGES_ICON_DELIJN_PNG",
                 "type": "png"
             }
         ]
