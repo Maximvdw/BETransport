@@ -28,6 +28,7 @@ var screen_mivb_arrivals = null;
 var screen_nmbs = null;
 var screen_nmbs_arrivals = null;
 var screen_load = null;
+var screen_error = null;
 
 /**
  * DeLijnAPI
@@ -66,7 +67,8 @@ var DeLijn = {
       function(error) {
         // Error while contacting irail
         console.log("Unable to get station from url '" + url + "' !");
-        
+        hideLoading();
+        showError();
       }
     );
   },
@@ -107,7 +109,8 @@ var DeLijn = {
       function(error) {
         // Error while contacting irail
         console.log("Unable to get arrivals from url '" + url + "' !");
-        
+        hideLoading();
+        showError();
       }
     );
   },
@@ -230,7 +233,8 @@ var MIVB = {
       function(error) {
         // Error while contacting irail
         console.log("Unable to get station from url '" + url + "' !");
-
+        hideLoading();
+        showError();
       }
     );
   },
@@ -271,7 +275,8 @@ var MIVB = {
       function(error) {
         // Error while contacting irail
         console.log("Unable to get arrivals from url '" + url + "' !");
-
+        hideLoading();
+        showError();
       }
     );
   },
@@ -403,7 +408,8 @@ var NMBS = {
       function(error) {
         // Error while contacting irail
         console.log("Unable to get arrivals from url '" + url + "' !");
-        
+        hideLoading();
+        showError();
        
       }
     );
@@ -438,7 +444,8 @@ var NMBS = {
          function(error) {
            // Error while contacting irail
            console.log("Unable to get vehicle from url '" + url + "' !");
-
+           hideLoading();
+           showError();
 
          }
         );
@@ -603,6 +610,11 @@ var messages = {
     en: 'Loading ...',
     nl: 'Bezig met laden ...',
     fr: 'Loading ...'
+  },
+  error_screen: {
+    en: 'Error while getting data!',
+    nl: 'Fout bij het ophalen!',
+    fr: 'Error while getting data!'
   }
 };
 
@@ -619,12 +631,15 @@ function getMessage(message){
 }
 
 
+// DeLijn Stops and Arrivals cached
 var delijn_haltes = [];
 var delijn_arrivals = [];
 
+// MIVB Stops and Arrivals cached
 var mivbstib_haltes = [];
 var mivbstib_arrivals = [];
 
+// NMBS Stops and Arrivals cached
 var nmbs_haltes = [];
 var nmbs_arrivals = [];
 
@@ -658,7 +673,7 @@ function nmbs_onArrivalsLoaded(station,arrivals){
         var arrival = nmbs_arrivals[id][i];
         arrivals_menu.push({
           title: arrival.getTrain().getId() + "  " + arrival.getTime().toLocaleTimeString(),
-          subtitle: arrival.getDirection()
+          subtitle: "[" + arrival.getPlatform() + "] " + arrival.getDirection()
         });
       }
   
@@ -823,8 +838,6 @@ function load_nmbs(){
   showLoading();
   nmbs_haltes = [];
   nmbs_arrivals = [];
-  nmbs_traincount = 0;
-  nmbs_loadedtrains = 0;
   for (var halte in options.nmbsHaltes){
     NMBS.getStation(options.nmbsHaltes[halte]);
   }
@@ -837,7 +850,7 @@ function load_nmbs(){
 
 
 screen_load = new UI.Window();
-var text = new UI.Text({
+var text_load = new UI.Text({
   position: new Vector2(0, 0),
   size: new Vector2(144, 168),
   text: getMessage(messages.loading_screen),
@@ -847,7 +860,7 @@ var text = new UI.Text({
   textAlign: 'center',
   backgroundColor: 'white'
 });
-screen_load.add(text);
+screen_load.add(text_load);
 
 function showLoading(){
   screen_load.show();
@@ -855,4 +868,25 @@ function showLoading(){
 
 function hideLoading(){
   screen_load.hide();
+}
+
+screen_error = new UI.Window();
+var text_error = new UI.Text({
+  position: new Vector2(0, 0),
+  size: new Vector2(144, 168),
+  text: getMessage(messages.error_screen),
+  font: 'GOTHIC_28_BOLD',
+  color: 'black',
+  textOverflow: 'wrap',
+  textAlign: 'center',
+  backgroundColor: 'white'
+});
+screen_error.add(text_error);
+
+function showError(){
+  screen_error.show();
+}
+
+function hideError(){
+  screen_error.hide();
 }
