@@ -369,9 +369,9 @@ var NMBS = {
    * @param count Max count
    * @return Array with Arrivals
    */
-  getArrivals: function(station,count){
+  getDepartures: function(station,count){
     var d = new Date();
-    var url = "https://data.irail.be/NMBS/Arrivals/" + station.getName() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
+    var url = "https://data.irail.be/NMBS/Departures/" + station.getName() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
     // Get the arrivals from the URL
     ajax({
       url: url,
@@ -382,14 +382,17 @@ var NMBS = {
         console.log("Arrivals fetched from url '" + url + "'");
         
         var arrivals = [];
-        console.log("Found '" + data.Arrivals.arrivals.length + "' arrivals!");
-        if (data.Arrivals.arrivals.length < count){
-          count = data.Arrivals.arrivals.length;
+        console.log("Found '" + data.Departures.departures.length + "' arrivals!");
+        if (data.Departures.departures.length < count){
+          count = data.Departures.departures.length;
         }
         for (var i = 0; i < count; i++) {
           var arrival = new NMBS.Arrival();
-          arrival.setTime(new Date(data.Arrivals.arrivals[i].time * 1000));
-          var trainId = data.Arrivals.arrivals[i].vehicle.replace(/BE.NMBS./g,"");
+          arrival.setTime(new Date(data.Departures.departures[i].time * 1000));
+          arrival.setDelay(data.Departures.departures[i].delay * 1000);
+          arrival.setDirection(data.Departures.departures[i].direction);
+          arrival.setPlatform(data.Departures.departures[i].platform.name);
+          var trainId = data.Departures.departures[i].vehicle.replace(/BE.NMBS./g,"");
           var train = new NMBS.Train();
           train.setId(trainId);
           arrival.setTrain(train);
@@ -406,7 +409,7 @@ var NMBS = {
     );
   },
   
-  getVehicle: function(station,arrival,trainId){
+  getVehicle: function(trainId){
     var d = new Date();
     var url = "https://data.irail.be/NMBS/Vehicle/" + trainId + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json";
     // Get the arrivals from the URL
@@ -420,9 +423,17 @@ var NMBS = {
            var train = new NMBS.Train();
            train.setId(trainId);
            console.log("Vehicle stops: " + data.Vehicle.stops.length);
+           var trainStops = [];
+           for (var i in data.Vehicle.stops){
+             var stop = new NMBS.TrainStop();
+             var stopStation = new NMBS.Station();
+             stopStation.setName(data.Vehicle.stops[i].station.name);
+             stop.setStation(stopStation);
+             trainStops.push(stop);
+           }
+           train.setStops(trainStops);
            train.setName(data.Vehicle.stops[0].station.name + " - " + data.Vehicle.stops[data.Vehicle.stops.length - 1].station.name);
-           arrival.setTrain(train);
-           nmbs_onTrainLoaded(station,arrival,trainId);
+           nmbs_onTrainLoaded(train);
          },
          function(error) {
            // Error while contacting irail
@@ -463,6 +474,8 @@ var NMBS = {
     this.train = NMBS.Train();
     this.time = Date();
     this.platform = 0;
+    this.direction = "";
+    this.delay = 0;
     
     this.getTrain = function(){
       return this.train;
@@ -482,6 +495,18 @@ var NMBS = {
     this.setPlatform = function(platform){
       this.platform = platform;
     };
+    this.getDirection = function(){
+      return this.direction;
+    };
+    this.setDirection = function(direction){
+      this.direction = direction;
+    };
+    this.getDelay = function(){
+      return this.delay;
+    };
+    this.setDelay = function(delay){
+      this.delay = delay;
+    };
   },
   
   /**
@@ -490,6 +515,7 @@ var NMBS = {
   Train: function(){
     this.id = "";
     this.name = "";
+    this.stops = [];
     
     this.getId = function() {
       return this.id;
@@ -502,6 +528,26 @@ var NMBS = {
     };
     this.setName = function(name){
       this.name = name;
+    };
+    this.getStops = function() {
+      return this.stops;
+    };
+    this.setStops = function(stops){
+      this.stops = stops;
+    };
+  },
+  
+  /**
+   * Train stops
+   */
+  TrainStop: function(){
+    this.station = NMBS.Station();
+    
+    this.getStation = function(){
+      return this.station;
+    };
+    this.setStation = function(station){
+      this.station = station;
     };
   }
 };
@@ -575,52 +621,27 @@ function getMessage(message){
 
 var delijn_haltes = [];
 var delijn_arrivals = [];
+
 var mivbstib_haltes = [];
 var mivbstib_arrivals = [];
+
 var nmbs_haltes = [];
 var nmbs_arrivals = [];
-var nmbs_traincount = 0;
-var nmbs_loadedtrains = 0;
 
 function nmbs_onStationLoaded(station){
-  NMBS.getArrivals(station,10);
+  NMBS.getDepartures(station,10);
 }
 
 function nmbs_onArrivalsLoaded(station,arrivals){
   nmbs_haltes.unshift(station);
   nmbs_arrivals.unshift(arrivals);
   console.log("Arrivals loaded NMBS for " + station.getName() + "  [" + arrivals.length + "]");
-  for(var i in arrivals){
-    console.log("Getting vehicle information about : " + arrivals[i].getTrain().getId());
-    NMBS.getVehicle(station,arrivals[i],arrivals[i].getTrain().getId());
-    nmbs_traincount++;
-  }
-}
-
-function nmbs_onTrainLoaded(station,arrival,train){
-  nmbs_loadedtrains++;
-  var stationIdx = 0;
-  // Get index
-  for (var i in nmbs_haltes){
-    if (nmbs_haltes[i].getName() == station.getName()){
-      stationIdx = i;
-      break;
-    }
-  }
-  
-  for (i in nmbs_arrivals[stationIdx]){
-    if (nmbs_arrivals[stationIdx][i].getTime() == arrival.getTime() && nmbs_arrivals[stationIdx][i].getTrain().getId() == arrival.getTrain().getId()){
-      nmbs_arrivals[stationIdx][i] = arrival;
-    }
-  }
-  
-  if (nmbs_loadedtrains >= nmbs_traincount){
-    // Trains loaded
+  if (nmbs_haltes.length == options.nmbsHaltes.length){
     var nmbs_menu = [];
-    for (i in nmbs_haltes){
+    for (var i in nmbs_haltes){
       nmbs_menu.unshift({
         title: nmbs_haltes[i].getName(),
-        subtitle: nmbs_arrivals[i][0].getTrain().getId()
+        subtitle: nmbs_arrivals[i][0].getTrain().getId() + " " + nmbs_arrivals[i][0].getDirection()
       });
     }
     screen_nmbs = new UI.Menu({
@@ -631,21 +652,27 @@ function nmbs_onTrainLoaded(station,arrival,train){
     });
     screen_nmbs.on('select', function(e) {
       var id = e.itemIndex;
-
+  
       var arrivals_menu = [];
       for (var i in nmbs_arrivals[id]){
         var arrival = nmbs_arrivals[id][i];
         arrivals_menu.push({
           title: arrival.getTrain().getId() + "  " + arrival.getTime().toLocaleTimeString(),
-          subtitle: arrival.getTrain().getName()
+          subtitle: arrival.getDirection()
         });
       }
-
+  
       screen_nmbs_arrivals = new UI.Menu({
         sections: [{
           title: nmbs_haltes[id].getName(),
           items: arrivals_menu
         }]
+      });
+      screen_nmbs_arrivals.on('select', function(e) {
+        var arrivalId = e.itemIndex;
+        var arrival = nmbs_arrivals[id][arrivalId];
+        showLoading();
+        NMBS.getVehicle(arrival.getTrain().getId());
       });
       screen_nmbs_arrivals.show();
     });
@@ -653,6 +680,23 @@ function nmbs_onTrainLoaded(station,arrival,train){
     hideLoading();
     screen_nmbs.show(); 
   }
+}
+
+function nmbs_onTrainLoaded(train){
+  hideLoading();
+  var content = "";
+  for (var stopId in train.getStops()){
+    var stop = train.getStops()[stopId];
+    content += stop.getStation().getName();
+    
+    content += "\n\n";
+  }
+  var stationDetail = new UI.Card({
+    title: train.getId(),
+    body: content,
+    scrollable: true
+  });
+  stationDetail.show();
 }
 
 function mivbstib_onStationLoaded(station){
