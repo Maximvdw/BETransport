@@ -52,17 +52,22 @@ var DeLijn = {
       type: 'json',
       },
       function(data) {
-        // Parse JSON data
-        console.log("Station fetched from url '" + url + "'");
-        
-        var stations = data.Stations;
-        
-        var station = new DeLijn.Station();
-        station.setId(stations[0].id);
-        station.setCode(stations[0].code);
-        station.setName(stations[0].name);
-        console.log("Station: " + station.getName() + " [" + station.getId() + "]");
-        delijn_onStationLoaded(station);
+        try{
+          // Parse JSON data
+          console.log("Station fetched from url '" + url + "'");
+          
+          var stations = data.Stations;
+          
+          var station = new DeLijn.Station();
+          station.setId(stations[0].id);
+          station.setCode(stations[0].code);
+          station.setName(stations[0].name);
+          console.log("Station: " + station.getName() + " [" + station.getId() + "]");
+          delijn_onStationLoaded(station); 
+        }catch (err){
+          hideLoading();
+          showError();
+        }
       },
       function(error) {
         // Error while contacting irail
@@ -89,22 +94,27 @@ var DeLijn = {
       type: 'json'
       },
       function(data) {
-        // Parse JSON data
-        console.log("Arrivals fetched from url '" + url + "'");
-        
-        var arrivals = [];
-        console.log("Found '" + data.Arrivals.length + "' arrivals!");
-        for (var i in data.Arrivals){
-          var arrival = new DeLijn.Arrival();
-          var bus = new DeLijn.Bus();
-          bus.setNumber(data.Arrivals[i].short_name);
-          bus.setName(data.Arrivals[i].long_name);
-          arrival.setBus(bus);
-          arrival.setTime(new Date(data.Arrivals[i].time * 1000));
-          arrivals.push(arrival); 
+        try{
+          // Parse JSON data
+          console.log("Arrivals fetched from url '" + url + "'");
+          
+          var arrivals = [];
+          console.log("Found '" + data.Arrivals.length + "' arrivals!");
+          for (var i in data.Arrivals){
+            var arrival = new DeLijn.Arrival();
+            var bus = new DeLijn.Bus();
+            bus.setNumber(data.Arrivals[i].short_name);
+            bus.setName(data.Arrivals[i].long_name);
+            arrival.setBus(bus);
+            arrival.setTime(new Date(data.Arrivals[i].time * 1000));
+            arrivals.push(arrival); 
+          }
+          
+          delijn_onArrivalsLoaded(station,arrivals);
+        }catch (err){
+          hideLoading();
+          showError();
         }
-        
-        delijn_onArrivalsLoaded(station,arrivals);
       },
       function(error) {
         // Error while contacting irail
@@ -152,7 +162,6 @@ var DeLijn = {
   Arrival: function(){
     this.bus = DeLijn.Bus();
     this.time = Date();
-    this.delay = 0;
     
     this.getBus = function(){
       return this.bus;
@@ -165,12 +174,6 @@ var DeLijn = {
     };
     this.setTime = function(time){
       this.time = time;
-    };
-    this.getDelay = function(){
-      return this.delay;
-    };
-    this.setDelay = function(delay){
-      this.delay = delay;
     };
   },
   
@@ -383,27 +386,32 @@ var NMBS = {
       type: 'json'
       },
       function(data) {
-        // Parse JSON data
-        console.log("Arrivals fetched from url '" + url + "'");
-        
-        var arrivals = [];
-        console.log("Found '" + data.Departures.departures.length + "' arrivals!");
-        if (data.Departures.departures.length < count){
-          count = data.Departures.departures.length;
+        try{
+          // Parse JSON data
+          console.log("Arrivals fetched from url '" + url + "'");
+          
+          var arrivals = [];
+          console.log("Found '" + data.Departures.departures.length + "' arrivals!");
+          if (data.Departures.departures.length < count){
+            count = data.Departures.departures.length;
+          }
+          for (var i = 0; i < count; i++) {
+            var arrival = new NMBS.Arrival();
+            arrival.setTime(new Date(data.Departures.departures[i].time * 1000));
+            arrival.setDelay(data.Departures.departures[i].delay * 1000);
+            arrival.setDirection(data.Departures.departures[i].direction);
+            arrival.setPlatform(data.Departures.departures[i].platform.name);
+            var trainId = data.Departures.departures[i].vehicle.replace(/BE.NMBS./g,"");
+            var train = new NMBS.Train();
+            train.setId(trainId);
+            arrival.setTrain(train);
+            arrivals.push(arrival);
+          }
+          nmbs_onArrivalsLoaded(station,arrivals);
+        }catch (err){
+          hideLoading();
+          showError();
         }
-        for (var i = 0; i < count; i++) {
-          var arrival = new NMBS.Arrival();
-          arrival.setTime(new Date(data.Departures.departures[i].time * 1000));
-          arrival.setDelay(data.Departures.departures[i].delay * 1000);
-          arrival.setDirection(data.Departures.departures[i].direction);
-          arrival.setPlatform(data.Departures.departures[i].platform.name);
-          var trainId = data.Departures.departures[i].vehicle.replace(/BE.NMBS./g,"");
-          var train = new NMBS.Train();
-          train.setId(trainId);
-          arrival.setTrain(train);
-          arrivals.push(arrival);
-        }
-        nmbs_onArrivalsLoaded(station,arrivals);
       },
       function(error) {
         // Error while contacting irail
@@ -424,22 +432,27 @@ var NMBS = {
       type: 'json'
     },
          function(data) {
-           // Parse JSON data
-           console.log("Vehicle fetched from url '" + url + "'");
-           var train = new NMBS.Train();
-           train.setId(trainId);
-           console.log("Vehicle stops: " + data.Vehicle.stops.length);
-           var trainStops = [];
-           for (var i in data.Vehicle.stops){
-             var stop = new NMBS.TrainStop();
-             var stopStation = new NMBS.Station();
-             stopStation.setName(data.Vehicle.stops[i].station.name);
-             stop.setStation(stopStation);
-             trainStops.push(stop);
+           try{
+             // Parse JSON data
+             console.log("Vehicle fetched from url '" + url + "'");
+             var train = new NMBS.Train();
+             train.setId(trainId);
+             console.log("Vehicle stops: " + data.Vehicle.stops.length);
+             var trainStops = [];
+             for (var i in data.Vehicle.stops){
+               var stop = new NMBS.TrainStop();
+               var stopStation = new NMBS.Station();
+               stopStation.setName(data.Vehicle.stops[i].station.name);
+               stop.setStation(stopStation);
+               trainStops.push(stop);
+             }
+             train.setStops(trainStops);
+             train.setName(data.Vehicle.stops[0].station.name + " - " + data.Vehicle.stops[data.Vehicle.stops.length - 1].station.name);
+             nmbs_onTrainLoaded(train);
+           }catch (err){
+             hideLoading();
+             showError();
            }
-           train.setStops(trainStops);
-           train.setName(data.Vehicle.stops[0].station.name + " - " + data.Vehicle.stops[data.Vehicle.stops.length - 1].station.name);
-           nmbs_onTrainLoaded(train);
          },
          function(error) {
            // Error while contacting irail
@@ -592,25 +605,38 @@ var messages = {
     nl: 'NMBS',
     fr: 'NMBS'
   },
+  // This message is displayed in the title of a menu
+  // that shows all bus stops.
   transport_stops_title: {
     en: 'Your stops',
     nl: 'Uw haltes',
-    fr: 'Your stops'
+    fr: 'Vos arrêts de bus'
   },
+  // This message is displayed in the title of a menu
+  // that shows all train stations.
   transport_stations_title: {
     en: 'Your stations',
     nl: 'Uw stations',
-    fr: 'Your stations'
+    fr: 'Vos gares'
   },
+  // This message is displayed to show that there
+  // are no arrivals in the near future.
+  transport_noarrivals: {
+    en: 'None',
+    nl: 'Geen',
+    fr: 'Aucun'
+  },
+  // This is the loading screen
   loading_screen: {
     en: 'Loading ...',
     nl: 'Bezig met laden ...',
-    fr: 'Loading ...'
+    fr: 'Chargement ...'
   },
+  // This is the error screen
   error_screen: {
     en: 'Error while getting data!',
     nl: 'Fout bij het ophalen!',
-    fr: 'Error while getting data!'
+    fr: 'Erreur lors de l\'obtention de données!'
   }
 };
 
@@ -650,9 +676,13 @@ function nmbs_onArrivalsLoaded(station,arrivals){
   if (nmbs_haltes.length == options.nmbsHaltes.length){
     var nmbs_menu = [];
     for (var i in nmbs_haltes){
+      var trainStr = getMessage(messages.transport_noarrivals);
+      if (nmbs_arrivals[i].length !== 0){
+        trainStr = nmbs_arrivals[i][0].getTrain().getId() + " " + nmbs_arrivals[i][0].getDirection();
+      }
       nmbs_menu.push({
         title: nmbs_haltes[i].getName(),
-        subtitle: nmbs_arrivals[i][0].getTrain().getId() + " " + nmbs_arrivals[i][0].getDirection()
+        subtitle: trainStr
       });
     }
     screen_nmbs = new UI.Menu({
@@ -667,8 +697,17 @@ function nmbs_onArrivalsLoaded(station,arrivals){
       var arrivals_menu = [];
       for (var i in nmbs_arrivals[id]){
         var arrival = nmbs_arrivals[id][i];
+        var curTime = new Date(); 
+        var arrivalTime = new Date(arrival.getTime() + (arrival.getDelay() * 1000));
+        var arrivalTimeStr = arrivalTime.toLocaleTimeString();
+        console.log('Time remaining for: ' + arrival.getTrain().getId() + '  =  ' + (arrivalTime.getTime() - curTime.getTime()));
+        console.log('Current time: ' + curTime.getTime());
+        console.log('Arrival time: ' + arrivalTime.getTime());
+        if (arrivalTime.getTime() - curTime.getTime() < 3600000){
+          arrivalTimeStr = Math.round(((arrivalTime.getTime()-curTime.getTime()) / 60000)) + " min";
+        }
         arrivals_menu.push({
-          title: arrival.getTrain().getId() + "  " + arrival.getTime().toLocaleTimeString(),
+          title: arrival.getTrain().getId() + "  " + arrivalTimeStr,
           subtitle: "[" + arrival.getPlatform() + "] " + arrival.getDirection()
         });
       }
@@ -723,7 +762,7 @@ function delijn_onStationLoaded(station){
 }
 
 function delijn_onArrivalsLoaded(station,arrivals){
-  var busStr = "None";
+  var busStr = getMessage(messages.transport_noarrivals);
   if (arrivals.length !== 0){
     busStr = arrivals[0].getBus().getNumber() + " " + arrivals[0].getBus().getName();
   }
@@ -745,8 +784,17 @@ function delijn_onArrivalsLoaded(station,arrivals){
         var arrivals_menu = [];
         for (var i in delijn_arrivals[id]){
           var arrival = delijn_arrivals[id][i];
+          var curTime = new Date(); 
+          var arrivalTime = arrival.getTime();
+          var arrivalTimeStr = arrivalTime.toLocaleTimeString();
+          console.log('Time remaining for: ' + arrival.getBus().getNumber() + '  =  ' + (arrivalTime.getTime() - curTime.getTime()));
+          console.log('Current time: ' + curTime.getTime());
+          console.log('Arrival time: ' + arrivalTime.getTime());
+          if (arrivalTime.getTime() - curTime.getTime() < 3600000){
+            arrivalTimeStr = Math.round(((arrivalTime.getTime()-curTime.getTime()) / 60000)) + " min";
+          }
           arrivals_menu.push({
-            title: arrival.getBus().getNumber() + "  -  " + arrival.getTime().toLocaleTimeString(),
+            title: arrival.getBus().getNumber() + "  -  " +  arrivalTimeStr,
             subtitle: arrival.getBus().getName()
           });
         }
@@ -791,10 +839,12 @@ function resetConfig(){
   options.delijnHaltes = [];
   options.mivbHaltes = [];
   options.nmbsHaltes = [];
-  options.language = 'en';
+  options.language = 'nl';
 }
 
 function load_app(){
+  initLoadingScreen();
+  initErrorScreen();
   if (localStorage.getItem("options") === null) {
     console.log("No options in Localstorage");
     resetConfig();
@@ -828,9 +878,9 @@ function load_app(){
       items: [{
         title: getMessage(messages.transport_delijn),
         icon: 'images/icon_delijn.png'
-      },{
-        title: getMessage(messages.transport_mivb),
-        icon: 'images/icon_mivbstib.png'
+//       },{
+//         title: getMessage(messages.transport_mivb),
+//         icon: 'images/icon_mivbstib.png'
       },{
         title: getMessage(messages.transport_nmbs),
         icon: 'images/icon_nmbs.png'
@@ -843,7 +893,7 @@ function load_app(){
       case 0:
         load_delijn();
         break;
-      case 2:
+      case 1:
         load_nmbs();
         break;
     }
@@ -881,18 +931,21 @@ function load_nmbs(){
 }
 
 
-screen_load = new UI.Window();
-var text_load = new UI.Text({
-  position: new Vector2(0, 0),
-  size: new Vector2(144, 168),
-  text: getMessage(messages.loading_screen),
-  font: 'GOTHIC_28_BOLD',
-  color: 'black',
-  textOverflow: 'wrap',
-  textAlign: 'center',
-  backgroundColor: 'white'
-});
-screen_load.add(text_load);
+
+function initLoadingScreen(){
+  screen_load = new UI.Window();
+  var text_load = new UI.Text({
+    position: new Vector2(0, 0),
+    size: new Vector2(144, 168),
+    text: getMessage(messages.loading_screen),
+    font: 'GOTHIC_28_BOLD',
+    color: 'black',
+    textOverflow: 'wrap',
+    textAlign: 'center',
+    backgroundColor: 'white'
+  });
+  screen_load.add(text_load);
+}
 
 function showLoading(){
   screen_load.show();
@@ -902,18 +955,21 @@ function hideLoading(){
   screen_load.hide();
 }
 
-screen_error = new UI.Window();
-var text_error = new UI.Text({
-  position: new Vector2(0, 0),
-  size: new Vector2(144, 168),
-  text: getMessage(messages.error_screen),
-  font: 'GOTHIC_28_BOLD',
-  color: 'black',
-  textOverflow: 'wrap',
-  textAlign: 'center',
-  backgroundColor: 'white'
-});
-screen_error.add(text_error);
+
+function initErrorScreen(){
+  screen_error = new UI.Window();
+  var text_error = new UI.Text({
+    position: new Vector2(0, 0),
+    size: new Vector2(144, 168),
+    text: getMessage(messages.error_screen),
+    font: 'GOTHIC_28_BOLD',
+    color: 'black',
+    textOverflow: 'wrap',
+    textAlign: 'center',
+    backgroundColor: 'white'
+  });
+  screen_error.add(text_error);
+}
 
 function showError(){
   screen_error.show();
