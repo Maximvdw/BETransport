@@ -8,7 +8,7 @@
  * The application uses public data fetched from the irail.be
  * site.
  *
- * @version 1.0.0
+ * @version 1.1.0
  * @author Maxim Van de Wynckel
  */
 
@@ -29,6 +29,7 @@ var screen_nmbs = null;
 var screen_nmbs_arrivals = null;
 var screen_load = null;
 var screen_error = null;
+
 
 /**
  * DeLijnAPI
@@ -726,6 +727,11 @@ function nmbs_onArrivalsLoaded(station,arrivals){
       });
       screen_nmbs_arrivals.show();
     });
+    Accel.init();
+    screen_nmbs.on('accelTap', function(e) {
+      screen_nmbs.hide();
+      load_nmbs();
+    });
     console.log("Hiding load screen [NMBS]");
     hideLoading();
     screen_nmbs.show(); 
@@ -766,11 +772,11 @@ function delijn_onArrivalsLoaded(station,arrivals){
   if (arrivals.length !== 0){
     busStr = arrivals[0].getBus().getNumber() + " " + arrivals[0].getBus().getName();
   }
-  delijn_haltes.unshift({
+  delijn_haltes.push({
     title: station.getName(),
     subtitle: busStr
   });
-  delijn_arrivals.unshift(arrivals);
+  delijn_arrivals.push(arrivals);
   if (delijn_haltes.length == options.delijnHaltes.length){
       screen_delijn = new UI.Menu({
         sections: [{
@@ -807,9 +813,14 @@ function delijn_onArrivalsLoaded(station,arrivals){
         });
         screen_delijn_arrivals.show();
       });
+      Accel.init();
+      screen_delijn.on('accelTap', function(e) {
+        screen_delijn.hide();
+        load_delijn();
+      });
       console.log("Hiding load screen [DeLijn]");
       hideLoading();
-      screen_delijn.show(); 
+      screen_delijn.show();
   }
 }
 
@@ -843,8 +854,6 @@ function resetConfig(){
 }
 
 function load_app(){
-  initLoadingScreen();
-  initErrorScreen();
   if (localStorage.getItem("options") === null) {
     console.log("No options in Localstorage");
     resetConfig();
@@ -871,6 +880,9 @@ function load_app(){
   try{ screen_mivb_arrivals.hide(); }catch (err){}
   try{ screen_nmbs.hide(); }catch (err){}
   try{ screen_nmbs_arrivals.hide(); }catch (err){}
+  
+  initLoadingScreen();
+  initErrorScreen();
   
   screen_menu = new UI.Menu({
     sections: [{
