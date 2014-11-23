@@ -30,6 +30,11 @@
                 "type": "font"
             },
             {
+                "file": "images/menu.png",
+                "name": "IMAGES_MENU_PNG",
+                "type": "png"
+            },
+            {
                 "file": "images/icon_nmbs.png",
                 "name": "IMAGES_ICON_NMBS_PNG",
                 "type": "png"

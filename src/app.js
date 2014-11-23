@@ -16,7 +16,18 @@
 var UI = require('ui');
 var Vector2 = require('vector2');
 var ajax = require('ajax');
+var Vibe = require('ui/vibe');
+var Accel = require('ui/accel');
   
+// Screens
+var screen_menu = null;
+var screen_delijn = null;
+var screen_delijn_arrivals = null;
+var screen_mivb = null;
+var screen_mivb_arrivals = null;
+var screen_nmbs = null;
+var screen_nmbs_arrivals = null;
+var screen_load = null;
 
 /**
  * DeLijnAPI
@@ -138,6 +149,7 @@ var DeLijn = {
   Arrival: function(){
     this.bus = DeLijn.Bus();
     this.time = Date();
+    this.delay = 0;
     
     this.getBus = function(){
       return this.bus;
@@ -150,6 +162,12 @@ var DeLijn = {
     };
     this.setTime = function(time){
       this.time = time;
+    };
+    this.getDelay = function(){
+      return this.delay;
+    };
+    this.setDelay = function(delay){
+      this.delay = delay;
     };
   },
   
@@ -338,37 +356,10 @@ var NMBS = {
    * @param id Station identifier
    * @return Parsed JSON array
    */
-  getStation: function(id){
-    var url = "http://data.irail.be/NMBS/Stations.json?id=" + id;
-    
-    var output = null;
-    // Get the stations from the URL
-    ajax({
-      url: url,
-      type: 'json',
-      async: false
-      },
-      function(data) {
-        // Parse JSON data
-        console.log("Station fetched from url '" + url + "'");
-        
-        var stations = data.Stations;
-        
-        var station = new MIVB.Station();
-        station.setId(stations[0].id);
-        station.setName(stations[0].name);
-        console.log("Station: " + station.getName() + " [" + station.getId() + "]");
-        
-        output = station;
-      },
-      function(error) {
-        // Error while contacting irail
-        console.log("Unable to get station from url '" + url + "' !");
-        
-        output = null;
-      }
-    );
-    return output;
+  getStation: function(name){
+    var station = new NMBS.Station();
+    station.setName(name);
+    nmbs_onStationLoaded(station);
   },
   
   /**
@@ -380,29 +371,31 @@ var NMBS = {
    */
   getArrivals: function(station,count){
     var d = new Date();
-    var url = "https://data.irail.be/NMBS/Liveboard/" + station.getId() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
+    var url = "https://data.irail.be/NMBS/Arrivals/" + station.getName() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
     // Get the arrivals from the URL
     ajax({
       url: url,
-      type: 'json',
-      async: false
+      type: 'json'
       },
       function(data) {
         // Parse JSON data
         console.log("Arrivals fetched from url '" + url + "'");
         
         var arrivals = [];
-        console.log("Found '" + data.Arrivals.length + "' arrivals!");
-        for (var i in data.Arrivals){
-          var arrival = new DeLijn.Arrival();
-          var bus = new DeLijn.Bus();
-          bus.setNumber(data.Arrivals[i].short_name);
-          bus.setName(data.Arrivals[i].long_name);
-          arrival.setBus(bus);
-          arrival.setTime(new Date(data.Arrivals[i].time * 1000));
-          arrivals.push(arrival); 
+        console.log("Found '" + data.Arrivals.arrivals.length + "' arrivals!");
+        if (data.Arrivals.arrivals.length < count){
+          count = data.Arrivals.arrivals.length;
         }
-        
+        for (var i = 0; i < count; i++) {
+          var arrival = new NMBS.Arrival();
+          arrival.setTime(new Date(data.Arrivals.arrivals[i].time * 1000));
+          var trainId = data.Arrivals.arrivals[i].vehicle.replace(/BE.NMBS./g,"");
+          var train = new NMBS.Train();
+          train.setId(trainId);
+          arrival.setTrain(train);
+          arrivals.push(arrival);
+        }
+        nmbs_onArrivalsLoaded(station,arrivals);
       },
       function(error) {
         // Error while contacting irail
@@ -413,6 +406,32 @@ var NMBS = {
     );
   },
   
+  getVehicle: function(station,arrival,trainId){
+    var d = new Date();
+    var url = "https://data.irail.be/NMBS/Vehicle/" + trainId + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json";
+    // Get the arrivals from the URL
+    ajax({
+      url: url,
+      type: 'json'
+    },
+         function(data) {
+           // Parse JSON data
+           console.log("Vehicle fetched from url '" + url + "'");
+           var train = new NMBS.Train();
+           train.setId(trainId);
+           console.log("Vehicle stops: " + data.Vehicle.stops.length);
+           train.setName(data.Vehicle.stops[0].station.name + " - " + data.Vehicle.stops[data.Vehicle.stops.length - 1].station.name);
+           arrival.setTrain(train);
+           nmbs_onTrainLoaded(station,arrival,trainId);
+         },
+         function(error) {
+           // Error while contacting irail
+           console.log("Unable to get vehicle from url '" + url + "' !");
+
+
+         }
+        );
+  },
   
   /**
    * Station class
@@ -469,20 +488,20 @@ var NMBS = {
    * Train
    */
   Train: function(){
-    this.vehicle = 0;
+    this.id = "";
     this.name = "";
     
+    this.getId = function() {
+      return this.id;
+    };
+    this.setId = function(id){
+      this.id = id;
+    };
     this.getName = function() {
-          return this.name;
+      return this.name;
     };
     this.setName = function(name){
       this.name = name;
-    };
-    this.getVehicle = function(){
-      return this.vehicle;
-    };
-    this.setVehicle = function(vehicle){
-      this.vehicle = vehicle;
     };
   }
 };
@@ -497,8 +516,10 @@ var options = {
   mivbHaltes: [
     
   ],
-  nmbsStops: [
-    
+  nmbsHaltes: [
+    'Vilvoorde',
+    'Antwerpen Centraal',
+    'Brussel Zuid'
   ],
   language: 'nl'
 };
@@ -527,6 +548,11 @@ var messages = {
     nl: 'Uw haltes',
     fr: 'Your stops'
   },
+  transport_stations_title: {
+    en: 'Your stations',
+    nl: 'Uw stations',
+    fr: 'Your stations'
+  },
   loading_screen: {
     en: 'Loading ...',
     nl: 'Bezig met laden ...',
@@ -550,6 +576,84 @@ function getMessage(message){
 var delijn_haltes = [];
 var delijn_arrivals = [];
 var mivbstib_haltes = [];
+var mivbstib_arrivals = [];
+var nmbs_haltes = [];
+var nmbs_arrivals = [];
+var nmbs_traincount = 0;
+var nmbs_loadedtrains = 0;
+
+function nmbs_onStationLoaded(station){
+  NMBS.getArrivals(station,10);
+}
+
+function nmbs_onArrivalsLoaded(station,arrivals){
+  nmbs_haltes.unshift(station);
+  nmbs_arrivals.unshift(arrivals);
+  console.log("Arrivals loaded NMBS for " + station.getName() + "  [" + arrivals.length + "]");
+  for(var i in arrivals){
+    console.log("Getting vehicle information about : " + arrivals[i].getTrain().getId());
+    NMBS.getVehicle(station,arrivals[i],arrivals[i].getTrain().getId());
+    nmbs_traincount++;
+  }
+}
+
+function nmbs_onTrainLoaded(station,arrival,train){
+  nmbs_loadedtrains++;
+  var stationIdx = 0;
+  // Get index
+  for (var i in nmbs_haltes){
+    if (nmbs_haltes[i].getName() == station.getName()){
+      stationIdx = i;
+      break;
+    }
+  }
+  
+  for (i in nmbs_arrivals[stationIdx]){
+    if (nmbs_arrivals[stationIdx][i].getTime() == arrival.getTime() && nmbs_arrivals[stationIdx][i].getTrain().getId() == arrival.getTrain().getId()){
+      nmbs_arrivals[stationIdx][i] = arrival;
+    }
+  }
+  
+  if (nmbs_loadedtrains >= nmbs_traincount){
+    // Trains loaded
+    var nmbs_menu = [];
+    for (i in nmbs_haltes){
+      nmbs_menu.unshift({
+        title: nmbs_haltes[i].getName(),
+        subtitle: nmbs_arrivals[i][0].getTrain().getId()
+      });
+    }
+    screen_nmbs = new UI.Menu({
+      sections: [{
+        title: getMessage(messages.transport_nmbs) + ' - ' + getMessage(messages.transport_stations_title),
+        items: nmbs_menu
+      }]
+    });
+    screen_nmbs.on('select', function(e) {
+      var id = e.itemIndex;
+
+      var arrivals_menu = [];
+      for (var i in nmbs_arrivals[id]){
+        var arrival = nmbs_arrivals[id][i];
+        arrivals_menu.push({
+          title: arrival.getTrain().getId() + "  " + arrival.getTime().toLocaleTimeString(),
+          subtitle: arrival.getTrain().getName()
+        });
+      }
+
+      screen_nmbs_arrivals = new UI.Menu({
+        sections: [{
+          title: nmbs_haltes[id].getName(),
+          items: arrivals_menu
+        }]
+      });
+      screen_nmbs_arrivals.show();
+    });
+    console.log("Hiding load screen [NMBS]");
+    hideLoading();
+    screen_nmbs.show(); 
+  }
+}
 
 function mivbstib_onStationLoaded(station){
   MIVB.getArrivals(station,10);
@@ -625,14 +729,6 @@ Pebble.addEventListener("webviewclosed", function(e) {
     }
 });
 
-// Screens
-var screen_menu = null;
-var screen_delijn = null;
-var screen_delijn_arrivals = null;
-var screen_mivb = null;
-var screen_mivb_arrivals = null;
-var screen_load = null;
-
 function load_menu(){
 
   screen_menu = new UI.Menu({
@@ -656,6 +752,9 @@ function load_menu(){
       case 0:
         load_delijn();
         break;
+      case 2:
+        load_nmbs();
+        break;
     }
   });
   screen_menu.show(); 
@@ -668,6 +767,27 @@ function load_delijn(){
   delijn_arrivals = [];
   for (var halte in options.delijnHaltes){
     DeLijn.getStation(options.delijnHaltes[halte]);
+  }
+  if (options.delijnHaltes.length === 0){
+    // Hide
+    Vibe.vibrate('short');
+    hideLoading();
+  }
+}
+
+function load_nmbs(){
+  showLoading();
+  nmbs_haltes = [];
+  nmbs_arrivals = [];
+  nmbs_traincount = 0;
+  nmbs_loadedtrains = 0;
+  for (var halte in options.nmbsHaltes){
+    NMBS.getStation(options.nmbsHaltes[halte]);
+  }
+  if (options.nmbsHaltes.length === 0){
+    // Hide
+    Vibe.vibrate('short');
+    hideLoading();
   }
 }
 
