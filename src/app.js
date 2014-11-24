@@ -379,8 +379,7 @@ var NMBS = {
    * @return Array with Arrivals
    */
   getDepartures: function(station,count){
-    var d = new Date();
-    var url = "https://data.irail.be/NMBS/Departures/" + station.getName() + "/" + d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getHours() + "/" + d.getMinutes() + ".json?rowcount=" + count;
+    var url = "http://api.irail.be/liveboard/?fast=true&station=" + station.getName() + "&format=json";
     // Get the arrivals from the URL
     ajax({
       url: url,
@@ -392,17 +391,21 @@ var NMBS = {
           console.log("Arrivals fetched from url '" + url + "'");
           
           var arrivals = [];
-          console.log("Found '" + data.Departures.departures.length + "' arrivals!");
-          if (data.Departures.departures.length < count){
-            count = data.Departures.departures.length;
+          console.log("Found '" + data.departures.departure.length + "' arrivals!");
+          if (data.departures.departure.length < count){
+            count = data.departures.departure.length;
           }
           for (var i = 0; i < count; i++) {
             var arrival = new NMBS.Arrival();
-            arrival.setTime(new Date(data.Departures.departures[i].time * 1000));
-            arrival.setDelay(data.Departures.departures[i].delay * 1000);
-            arrival.setDirection(data.Departures.departures[i].direction);
-            arrival.setPlatform(data.Departures.departures[i].platform.name);
-            var trainId = data.Departures.departures[i].vehicle.replace(/BE.NMBS./g,"");
+            arrival.setTime(new Date(data.departures.departure[i].time * 1000));
+            if (data.departures.departure[i].delay === "cancel"){
+              arrival.setDelay(false);
+            }else{
+              arrival.setDelay(data.departures.departure[i].delay * 1000); 
+            }
+            arrival.setDirection(data.departures.departure[i].station);
+            arrival.setPlatform(data.departures.departure[i].platform);
+            var trainId = data.departures.departure[i].vehicle.replace(/BE.NMBS./g,"");
             var train = new NMBS.Train();
             train.setId(trainId);
             arrival.setTrain(train);
@@ -627,6 +630,11 @@ var messages = {
     nl: 'Geen',
     fr: 'Aucun'
   },
+  delay_canceled: {
+    en: 'canceled',
+    nl: 'canceled',
+    fr: 'annulé'
+  },
   // This is the loading screen
   loading_screen: {
     en: 'Loading ...',
@@ -641,6 +649,11 @@ var messages = {
   }
 };
 
+/**
+ * Get the localized messaged based on the language
+ *
+ * @param message Message to return in a specific language
+ */
 function getMessage(message){
   switch (options.language){
     case 'nl':
@@ -650,7 +663,7 @@ function getMessage(message){
     case 'fr':
       return message.fr;
   }
-  return '';
+  return message.en;
 }
 
 
@@ -698,14 +711,22 @@ function nmbs_onArrivalsLoaded(station,arrivals){
       var arrivals_menu = [];
       for (var i in nmbs_arrivals[id]){
         var arrival = nmbs_arrivals[id][i];
-        var curTime = new Date(); 
-        var arrivalTime = new Date(arrival.getTime() + (arrival.getDelay() * 1000));
-        var arrivalTimeStr = arrivalTime.toLocaleTimeString();
-        console.log('Time remaining for: ' + arrival.getTrain().getId() + '  =  ' + (arrivalTime.getTime() - curTime.getTime()));
-        console.log('Current time: ' + curTime.getTime());
-        console.log('Arrival time: ' + arrivalTime.getTime());
-        if (arrivalTime.getTime() - curTime.getTime() < 3600000){
-          arrivalTimeStr = Math.round(((arrivalTime.getTime()-curTime.getTime()) / 60000)) + " min";
+        var arrivalTimeStr = "";
+        if (arrival.getDelay() !== false){
+          var curTime = new Date(); 
+          var arrivalTimeWithDelay = arrival.getTime().getTime() + arrival.getDelay();
+          var arrivalTime = new Date(arrivalTimeWithDelay);
+          arrivalTimeStr = arrivalTime.toLocaleTimeString();
+          console.log('Time remaining for: ' + arrival.getTrain().getId() + '  =  ' + (arrivalTime.getTime() - curTime.getTime())+ "\n" +
+                      'Current time: ' + curTime.getTime()+ "\n" +
+                      'Expected Arrival time: ' + arrival.getTime().getTime()+ "\n" +
+                      'Arrival time: ' + arrivalTime.getTime() + "\n" +
+                      'Delay time: ' + arrival.getDelay());
+          if (arrivalTime.getTime() - curTime.getTime() < 3600000){
+            arrivalTimeStr = Math.round(((arrivalTime.getTime()-curTime.getTime()) / 60000)) + " min";
+          }
+        }else{
+          arrivalTimeStr = getMessage(messages.delay_canceled);
         }
         arrivals_menu.push({
           title: arrival.getTrain().getId() + "  " + arrivalTimeStr,
@@ -778,49 +799,53 @@ function delijn_onArrivalsLoaded(station,arrivals){
   });
   delijn_arrivals.push(arrivals);
   if (delijn_haltes.length == options.delijnHaltes.length){
-      screen_delijn = new UI.Menu({
-        sections: [{
-          title: getMessage(messages.transport_delijn) + ' - ' + getMessage(messages.transport_stops_title),
-          items: delijn_haltes
-        }]
-      });
-      screen_delijn.on('select', function(e) {
-        var id = e.itemIndex;
-        
-        var arrivals_menu = [];
-        for (var i in delijn_arrivals[id]){
-          var arrival = delijn_arrivals[id][i];
-          var curTime = new Date(); 
-          var arrivalTime = arrival.getTime();
-          var arrivalTimeStr = arrivalTime.toLocaleTimeString();
-          console.log('Time remaining for: ' + arrival.getBus().getNumber() + '  =  ' + (arrivalTime.getTime() - curTime.getTime()));
-          console.log('Current time: ' + curTime.getTime());
-          console.log('Arrival time: ' + arrivalTime.getTime());
-          if (arrivalTime.getTime() - curTime.getTime() < 3600000){
-            arrivalTimeStr = Math.round(((arrivalTime.getTime()-curTime.getTime()) / 60000)) + " min";
-          }
-          arrivals_menu.push({
-            title: arrival.getBus().getNumber() + "  -  " +  arrivalTimeStr,
-            subtitle: arrival.getBus().getName()
-          });
-        }
-        
-        screen_delijn_arrivals = new UI.Menu({
+      if (arrivals.length !== 0){
+        screen_delijn = new UI.Menu({
           sections: [{
-            title: delijn_haltes[id].title,
-            items: arrivals_menu
+            title: getMessage(messages.transport_delijn) + ' - ' + getMessage(messages.transport_stops_title),
+            items: delijn_haltes
           }]
         });
-        screen_delijn_arrivals.show();
-      });
-      Accel.init();
-      screen_delijn.on('accelTap', function(e) {
-        screen_delijn.hide();
-        load_delijn();
-      });
-      console.log("Hiding load screen [DeLijn]");
-      hideLoading();
-      screen_delijn.show();
+        screen_delijn.on('select', function(e) {
+          var id = e.itemIndex;
+          
+          var arrivals_menu = [];
+          for (var i in delijn_arrivals[id]){
+            var arrival = delijn_arrivals[id][i];
+            var curTime = new Date(); 
+            var arrivalTime = arrival.getTime();
+            var arrivalTimeStr = arrivalTime.toLocaleTimeString();
+            console.log('Time remaining for: ' + arrival.getBus().getNumber() + '  =  ' + (arrivalTime.getTime() - curTime.getTime()));
+            console.log('Current time: ' + curTime.getTime());
+            console.log('Arrival time: ' + arrivalTime.getTime());
+            if (arrivalTime.getTime() - curTime.getTime() < 3600000){
+              arrivalTimeStr = Math.round(((arrivalTime.getTime()-curTime.getTime()) / 60000)) + " min";
+            }
+            arrivals_menu.push({
+              title: arrival.getBus().getNumber() + "  -  " +  arrivalTimeStr,
+              subtitle: arrival.getBus().getName()
+            });
+          }
+          
+          screen_delijn_arrivals = new UI.Menu({
+            sections: [{
+              title: delijn_haltes[id].title,
+              items: arrivals_menu
+            }]
+          });
+          screen_delijn_arrivals.show();
+        });
+        Accel.init();
+        screen_delijn.on('accelTap', function(e) {
+          screen_delijn.hide();
+          load_delijn();
+        });
+        console.log("Hiding load screen [DeLijn]");
+        hideLoading();
+        screen_delijn.show();
+      }else{
+        hideLoading();
+      }
   }
 }
 
@@ -853,6 +878,9 @@ function resetConfig(){
   options.language = 'nl';
 }
 
+/**
+ * Initialize the application and menu
+ */
 function load_app(){
   if (localStorage.getItem("options") === null) {
     console.log("No options in Localstorage");

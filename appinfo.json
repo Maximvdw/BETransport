@@ -54,7 +54,7 @@
     "shortName": "BETransport",
     "uuid": "6486f0fc-b77c-4a23-b6a8-b96553153aa2",
     "versionCode": 1,
-    "versionLabel": "1.0",
+    "versionLabel": "1.1",
     "watchapp": {
         "watchface": false
     }
